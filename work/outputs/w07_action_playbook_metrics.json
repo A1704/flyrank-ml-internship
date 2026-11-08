@@ -1,0 +1,95 @@
+{
+  "assignment": "ML-10 \u2014 Content Action Playbook",
+  "dataset": "data/raw/content_refresh_anonymized.csv",
+  "dataset_rows_raw": 30000,
+  "dataset_clients_raw": 32,
+  "model_rows_after_week5_filter": 30000,
+  "target": "is_declining_label derived from trend_direction == 'down'",
+  "split": {
+    "method": "GroupShuffleSplit",
+    "train_rows": 23837,
+    "test_rows": 6163,
+    "train_clients": 25,
+    "test_clients": 7,
+    "client_overlap": 0
+  },
+  "selected_model": "Logistic Regression",
+  "selected_model_metrics": {
+    "precision_at_20": 0.7,
+    "precision_at_50": 0.72,
+    "precision_at_100": 0.71,
+    "top50_precision_check": 0.72,
+    "average_precision": 0.6045298065769757,
+    "roc_auc": 0.6148821114886116
+  },
+  "model_comparison": [
+    {
+      "model": "Logistic Regression",
+      "precision_at_20": 0.7,
+      "precision_at_50": 0.72,
+      "precision_at_100": 0.71,
+      "average_precision": 0.6045298065769757,
+      "roc_auc": 0.6148821114886116
+    },
+    {
+      "model": "Random Forest",
+      "precision_at_20": 0.55,
+      "precision_at_50": 0.56,
+      "precision_at_100": 0.56,
+      "average_precision": 0.5918804335174572,
+      "roc_auc": 0.6109298767285429
+    }
+  ],
+  "queue": {
+    "rows": 6163,
+    "ranked_on": "selected model score, descending",
+    "scored_population": "held-out test rows only",
+    "contains_client_ids": false,
+    "contains_target_label": false,
+    "action_counts": {
+      "monitor": 4557,
+      "monitor_model_signal": 729,
+      "refresh_and_review_ctr": 673,
+      "audit_search_intent": 196,
+      "refresh_and_review_engagement": 8
+    },
+    "archetype_counts": {
+      "monitor_only": 4557,
+      "general_decline_risk": 925,
+      "snippet_or_intent_gap": 673,
+      "engagement_experience_gap": 8
+    }
+  },
+  "freshness_decay_audit": [
+    {
+      "bucket": "0\u201390 days",
+      "n": 20655,
+      "decline_rate": 0.5120309852335996
+    },
+    {
+      "bucket": "91\u2013180 days",
+      "n": 9171,
+      "decline_rate": 0.6110565914295061
+    },
+    {
+      "bucket": "181+ days",
+      "n": 174,
+      "decline_rate": 0.47126436781609193
+    }
+  ],
+  "operational_assumptions": {
+    "review_batch": 50,
+    "minutes_per_human_review_item_low": 5,
+    "minutes_per_human_review_item_high": 10,
+    "estimated_top50_review_hours_low": 4.17,
+    "estimated_top50_review_hours_high": 8.33,
+    "note": "Planning assumption only; not an observed cost or ROI estimate."
+  },
+  "limitations": [
+    "Historical decline prediction is not a causal estimate of refresh impact.",
+    "The best model was selected on the same held-out set used for evaluation; selected performance may be optimistic.",
+    "The grouped split tests held-out clients, not future time periods or all possible clients.",
+    "Thresholds are triage heuristics and are not universal or calibrated.",
+    "Every action requires human review; no content changes are automated."
+  ]
+}
