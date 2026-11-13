@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Can Search Performance Signals Identify Short-Term Content Decline?</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f4f6f9;color:#202b3a;font:16px/1.75 Arial,sans-serif}
+header{background:#172b46;color:white;padding:55px 22px}
+.hero,main{max-width:900px;margin:auto}
+header h1{font-size:clamp(30px,5vw,45px);line-height:1.2}
+header p{color:#d5deea}
+main{background:white;padding:35px 30px;margin:30px auto;border-radius:12px}
+h2{color:#183b68;border-bottom:1px solid #e1e6ed;padding-bottom:10px;margin-top:42px}
+h3{margin-top:27px;color:#304761}
+a{color:#245da5}
+table{width:100%;border-collapse:collapse;margin:18px 0}
+th,td{text-align:left;padding:10px;border:1px solid #dce2e9}
+th{background:#edf2f8}
+img{width:100%;height:auto;border:1px solid #ddd;border-radius:8px;margin-top:15px}
+figure{margin:25px 0}
+figcaption{font-size:14px;color:#596779}
+.callout{background:#f0f4f9;padding:16px;border-left:4px solid #315e99;margin:20px 0}
+footer{text-align:center;padding:25px;color:#657386}
+code{background:#eef1f5;padding:2px 5px;border-radius:4px}
+@media(max-width:600px){main{padding:22px 17px;margin:14px}header{padding:38px 20px}}
+</style>
+</head>
+<body>
+
+<header>
+<div class="hero">
+<p>FLYRANK ML INTERNSHIP · RESEARCH CAPSTONE</p>
+<h1>Can Search Performance Signals Identify Short-Term Content Decline?</h1>
+<p>An exploratory machine learning study of March 2026 search and analytics signals and April 2026 search-click outcomes, evaluated with client-held-out validation.</p>
+<p>3,609 client-content pairs · 19 clients · Logistic Regression · Leave-One-Client-Out validation</p>
+<p><a href="https://github.com/A1704/flyrank-ml-internship" style="color:white">Project GitHub repository</a></p>
+</div>
+</header>
+
+<main>
+
+<h2>1. Abstract</h2>
+<p>Can March 2026 search and analytics signals help identify content experiencing a decline in average daily Google Search Console clicks during April 2026? This study used five March-derived features and a Logistic Regression model evaluated through Leave-One-Client-Out cross-validation across 19 clients and 3,609 client-content pairs. The model achieved 54.70% accuracy and 47.88% balanced accuracy, both below the majority-class baseline. In a subgroup of seven clients with at least 20 held-out observations, mean ROC-AUC was 0.5527 and six clients exceeded their individual average-precision prevalence baselines. These findings indicate modest and variable ranking signals, but do not establish reliable automated prediction or the effectiveness of content refreshes.</p>
+
+<h2>2. Introduction / Problem Statement</h2>
+<p>Organic search performance is an important source of information for understanding how online content reaches its audience. However, changes in search clicks do not always reveal whether a content item has genuinely deteriorated or whether its performance has fluctuated because of demand, competition, visibility or measurement coverage.</p>
+<p>This study investigates whether historical search and analytics signals can help identify client-content pairs that experience a short-term decline in search clicks. The objective is to evaluate the usefulness of a simple machine learning approach while accounting for differences between clients during validation.</p>
+<p>The intended decision is whether historical performance signals can provide supplementary evidence for human investigation. The study does not attempt to prove that declining content requires refreshing or that a refresh will improve performance.</p>
+
+<h2>3. Data and Data Contract</h2>
+<h3>Dataset source and scope</h3>
+<p>This study uses the FlyRank pseudonymized warehouse release <code>flyrank_pseudonymized_warehouse_release_v20260703</code>.</p>
+<p>The warehouse contains daily content-performance records, but this experiment uses only two monthly partitions:</p>
+<ul><li>March 2026: feature construction.</li><li>April 2026: outcome and label construction.</li></ul>
+<p>The experiment does not claim to have modelled the entire 78.8-million-row warehouse.</p>
+
+<h3>Data grain</h3>
+<p>The unit of analysis is one unique client-content pair: <code>client_hash_id × content_hash_id</code>. Daily observations were aggregated to this level separately for the March feature window and April outcome window.</p>
+
+<h3>March features</h3>
+<ol>
+<li>Average daily GSC impressions.</li>
+<li>Average daily GSC clicks.</li>
+<li>Average daily GSC average position.</li>
+<li>Average daily GA4 pageviews.</li>
+<li>Average daily GA4 organic sessions.</li>
+</ol>
+<p>GSC-derived counts were normalized by the number of GSC-available reporting days. GA4-derived counts were normalized separately by the number of GA4-available reporting days. Pairs were required to have at least 20 reporting days for each data source during March.</p>
+
+<h3>April outcome and target</h3>
+<p>April average daily GSC clicks were calculated using GSC-available reporting days. Pairs were required to have at least 20 GSC reporting days in April.</p>
+<ul>
+<li><strong>1:</strong> April average daily GSC clicks were lower than March.</li>
+<li><strong>0:</strong> April average daily GSC clicks were equal to or higher than March.</li>
+</ul>
+
+<h3>Data quality and exclusions</h3>
+<ul>
+<li>Source availability flags were respected.</li>
+<li>Zero-filled values from unavailable sources were not treated as genuine zero activity.</li>
+<li>Client and content identifiers were retained for grouping and validation, but excluded from model features.</li>
+<li>April outcome fields and the target label were excluded from model inputs.</li>
+<li>Each source's reporting-day count was used to normalize its corresponding March count features.</li>
+</ul>
+
+<div class="callout">
+<strong>Final modelling dataset</strong>
+<ul>
+<li>Eligible client-content pairs: 3,609</li>
+<li>Distinct clients: 19</li>
+<li>Declining observations: 2,248</li>
+<li>Non-declining observations: 1,361</li>
+<li>Overall decline prevalence: approximately 62.3%</li>
+</ul>
+The target represents a change in observed search clicks. It does not establish a cause, content quality, or the effectiveness of content refreshes.
+</div>
+
+<h2>4. Methodology</h2>
+<h3>4.1 Prediction task</h3>
+<p>The task was formulated as binary classification. The model uses March 2026 performance signals to estimate whether a client-content pair will experience a reduction in average daily GSC clicks during April 2026. The target is observational and describes a change in search clicks, not the cause of that change.</p>
+
+<h3>4.2 Feature selection</h3>
+<ul>
+<li><code>gsc_impressions</code></li>
+<li><code>gsc_clicks</code></li>
+<li><code>gsc_avg_position</code></li>
+<li><code>ga4_pageviews</code></li>
+<li><code>sessions_organic</code></li>
+</ul>
+<p>The GSC and GA4 count features were normalized by their respective reporting-day counts. The March average daily GSC clicks are represented by <code>gsc_clicks</code> and were not added again as a duplicate feature. Client identifiers and content identifiers were used only to define validation groups. April measurements, label fields, and other future outcome information were excluded from model inputs.</p>
+
+<h3>4.3 Model</h3>
+<p>A Logistic Regression classifier was used with class-balanced weighting. The preprocessing and model pipeline included:</p>
+<ol>
+<li>Median imputation for missing feature values.</li>
+<li>Standard scaling of numeric features.</li>
+<li>Logistic Regression with <code>class_weight="balanced"</code>.</li>
+</ol>
+<p>Preprocessing was fitted independently within each training fold to avoid fitting transformations on held-out client data.</p>
+
+<h3>4.4 Validation design</h3>
+<p>The primary validation strategy was Leave-One-Client-Out (LOCO) cross-validation. In each fold, one entire client was held out for testing, the remaining clients were used for training, and the model generated predictions for the held-out client's observations. The process was repeated until every client had been held out once.</p>
+<p>This design prevents observations belonging to the same client from appearing in both the training and test sets within a fold. The evaluation covered 19 clients and produced 19 held-out folds. Six clients contained only one target class, so ROC-AUC and Average Precision could not be calculated meaningfully for those folds.</p>
+
+<h3>4.5 Baselines and evaluation metrics</h3>
+<p>The model was compared with a majority-class classification baseline.</p>
+<ul>
+<li>Accuracy</li><li>Balanced accuracy</li><li>ROC-AUC</li><li>Average Precision (AP)</li>
+</ul>
+<p>ROC-AUC and Average Precision were evaluated for clients with both target classes. For each client, the AP baseline was defined as that client's observed positive-class prevalence.</p>
+
+<h3>4.6 Leakage and validation safeguards</h3>
+<ul>
+<li>April outcome measurements were used only to construct the target.</li>
+<li>Client and content identifiers were excluded from model features.</li>
+<li>The target label was excluded from model inputs.</li>
+<li>Preprocessing was fitted within each training fold.</li>
+<li>Entire clients were held out during validation.</li>
+<li>A deliberate target-leakage diagnostic was tested separately and excluded from the valid experiment.</li>
+</ul>
+
+<h3>4.7 Scope of validation</h3>
+<p>LOCO evaluates performance on held-out clients within the March-to-April 2026 transition. It does not establish performance across future months or across other time periods. The small number of clients, highly unequal client sample sizes, and single-class client folds limit the strength of generalization claims.</p>
+
+<h2>5. Results</h2>
+<h3>5.1 Dataset and target distribution</h3>
+<p>The corrected modelling dataset contained 3,609 client-content pairs across 19 clients.</p>
+<ul><li>2,248 (62.3%) were labelled as declining.</li><li>1,361 (37.7%) were labelled as non-declining.</li></ul>
+<p>The target distribution indicates that declining observations formed the majority class.</p>
+<figure>
+<img src="../work/figures/target_distribution.png" alt="Distribution of content performance outcomes">
+<figcaption>Figure 1. Distribution of the 3,609 eligible client-content observations. 62.3% were labelled as declining and 37.7% as non-declining.</figcaption>
+</figure>
+
+<h3>5.2 Overall classification performance</h3>
+<table>
+<tr><th>Metric</th><th>Model</th><th>Majority-class baseline</th></tr>
+<tr><td>Accuracy</td><td>54.70%</td><td>62.29%</td></tr>
+<tr><td>Balanced accuracy</td><td>47.88%</td><td>50.00%</td></tr>
+</table>
+<p>The model did not outperform the majority-class baseline on either classification metric. This result indicates that the current feature set did not provide sufficient evidence for reliable binary classification under the client-held-out validation design.</p>
+
+<h3>5.3 Client-level ranking performance</h3>
+<p>ROC-AUC and Average Precision were evaluated separately for held-out clients containing both target classes. Across 13 eligible clients:</p>
+<ul>
+<li>Mean client-level ROC-AUC: 0.5271.</li>
+<li>Mean client-level Average Precision: 0.7238.</li>
+<li>Mean client-level AP prevalence baseline: 0.6573.</li>
+<li>11 of 13 clients exceeded their own AP prevalence baseline.</li>
+</ul>
+<p>These averages give each eligible client equal weight, rather than allowing the largest client to dominate the summary.</p>
+
+<h3>5.4 Results for clients with at least 20 held-out observations</h3>
+<p>Seven clients met this threshold.</p>
+<table>
+<tr><th>Metric</th><th>Result</th></tr>
+<tr><td>Clients evaluated</td><td>7</td></tr>
+<tr><td>Mean ROC-AUC</td><td>0.5527</td></tr>
+<tr><td>Mean Average Precision</td><td>0.6787</td></tr>
+<tr><td>Mean AP baseline</td><td>0.6377</td></tr>
+<tr><td>Clients above AP baseline</td><td>6 of 7</td></tr>
+</table>
+<figure>
+<img src="../work/figures/client_level_roc_auc.png" alt="Client-level ROC-AUC">
+<figcaption>Figure 2. ROC-AUC for seven held-out clients with at least 20 observations. The dashed line represents chance-level discrimination (0.50).</figcaption>
+</figure>
+<figure>
+<img src="../work/figures/client_level_average_precision.png" alt="Average Precision versus prevalence baseline">
+<figcaption>Figure 3. Model Average Precision compared with each client's prevalence baseline. The model exceeded the baseline for six of the seven clients.</figcaption>
+</figure>
+<p>The subgroup showed modest ranking performance. However, the largest client, containing 2,184 observations, had an ROC-AUC of 0.4780 and an AP below its prevalence baseline. The results therefore varied across clients and do not establish consistent predictive performance.</p>
+
+<h3>5.5 Interpretation</h3>
+<p>The model showed some ability to rank declining observations above a prevalence-only reference for several clients. However, its overall classification accuracy and balanced accuracy were below the majority-class baseline.</p>
+<p>The difference between the ranking and classification results is important: a model may rank observations somewhat better than a simple reference without being reliable enough to classify them correctly.</p>
+<p>These findings support further investigation of client-specific search-performance patterns, but they do not justify automated decisions about which content should be refreshed.</p>
+
+<h2>6. Limitations and Honest Framing</h2>
+<h3>6.1 Limited client coverage</h3>
+<p>The corrected modelling dataset contains 3,609 client-content pairs from only 19 clients. The number of observations is highly unequal across clients, with one client contributing 2,184 observations. Consequently, the overall dataset is not evenly representative of all clients.</p>
+<h3>6.2 Small and single-class client groups</h3>
+<p>Six clients contained only one target class in their held-out observations. ROC-AUC and Average Precision could not be calculated meaningfully for these clients. Even among the seven clients with at least 20 observations, sample sizes varied substantially. Client-level estimates based on small samples may be unstable.</p>
+<h3>6.3 Limited time coverage</h3>
+<p>The experiment examines only one transition: March 2026 features and April 2026 outcomes. Although the validation strategy holds out entire clients, it does not test generalization across multiple future months, seasonal changes, or different market conditions.</p>
+<h3>6.4 Imperfect measurement</h3>
+<p>The target is based on changes in average daily Google Search Console clicks. Search clicks can fluctuate for reasons unrelated to content quality, including changes in demand, competition, seasonality, search visibility, and measurement coverage. The target therefore represents observed short-term search-click decline, not a confirmed content problem.</p>
+<h3>6.5 Feature limitations</h3>
+<p>The five selected features provide a limited representation of content performance. In particular, average GSC position was calculated as a simple average of daily average positions rather than an impression-weighted average. This may affect how position changes are represented.</p>
+<h3>6.6 Predictive performance limitations</h3>
+<p>The model's overall accuracy (54.70%) and balanced accuracy (47.88%) were below their respective majority-class reference values. Client-level ranking results were modest and varied between clients. The pooled out-of-fold ROC-AUC and Average Precision were not treated as primary ranking results because predictions came from separately fitted fold models and may not be directly comparable across clients.</p>
+<h3>6.7 No causal or intervention claims</h3>
+<p>This study did not conduct a controlled content-refresh experiment. It cannot establish that refreshing content would increase clicks, that any feature caused a decline, or that the model can identify content that will benefit from intervention. The model score is not a calibrated probability of refresh success.</p>
+<h3>6.8 Appropriate interpretation</h3>
+<p>The results should be treated as exploratory evidence about the relationship between historical performance signals and subsequent search-click changes. The model is a research prototype for further evaluation and human review. It is not a production-ready decision system and should not be used to automate content-refresh decisions.</p>
+
+<h2>7. Ranked Recommendations and Action Playbook</h2>
+<p>The findings suggest that search-performance monitoring should prioritize evidence-based investigation rather than automatic content-refresh decisions.</p>
+<h3>Priority 1 — Establish a consistent measurement baseline</h3>
+<ul><li>Track the number of GSC and GA4 reporting days separately.</li><li>Normalize count-based metrics by available reporting days.</li><li>Exclude or flag observations with insufficient reporting coverage.</li><li>Avoid interpreting unavailable-source values as genuine zero activity.</li></ul>
+<p><strong>Reason:</strong> The data-coverage audit showed that differences in source availability can affect feature construction and target labels.</p>
+<h3>Priority 2 — Investigate sustained search-click declines</h3>
+<ul><li>Compare equivalent reporting windows.</li><li>Check whether the decline is sustained rather than a short-lived fluctuation.</li><li>Review impressions and average position alongside clicks.</li><li>Investigate changes in search demand and competition before assigning a content-related explanation.</li></ul>
+<p><strong>Reason:</strong> The target captures observed click changes, but does not identify their causes.</p>
+<h3>Priority 3 — Use model scores only as a review aid</h3>
+<ul><li>Treat model rankings as exploratory prioritization signals.</li><li>Require a human reviewer to inspect the underlying search metrics.</li><li>Compare model rankings with simple prevalence-based references.</li><li>Re-evaluate performance separately for each client.</li></ul>
+<p><strong>Reason:</strong> Ranking performance was modest and varied across clients, while overall classification performance did not exceed the majority-class baseline.</p>
+<h3>Priority 4 — Improve client-level evaluation</h3>
+<ul><li>Collect more observations from clients with limited history.</li><li>Repeat validation across additional monthly transitions.</li><li>Report client-level sample sizes alongside evaluation metrics.</li><li>Investigate why the largest client did not exceed its AP baseline.</li></ul>
+<p><strong>Reason:</strong> The current evaluation covered only 19 clients, and the largest client showed weak ranking performance.</p>
+<h3>Priority 5 — Test content-refresh effectiveness separately</h3>
+<ul><li>Design a controlled or carefully matched refresh study.</li><li>Record which content items receive an intervention and when.</li><li>Compare outcomes against an appropriate untreated group.</li><li>Evaluate changes in clicks and impressions over a predefined follow-up period.</li></ul>
+<p><strong>Reason:</strong> The current observational experiment does not estimate the causal effect of content refreshes.</p>
+<h3>Recommended operational workflow</h3>
+<ol><li>Check reporting coverage.</li><li>Identify content with a sustained change in search performance.</li><li>Review impressions, clicks and position together.</li><li>Use model rankings only as supplementary evidence.</li><li>Conduct human investigation.</li><li>Record any intervention and evaluate its subsequent outcome.</li></ol>
+<div class="callout"><strong>Overall recommendation:</strong> Build a reliable monitoring and human-review process before attempting automated content-refresh prioritization.</div>
+
+<h2>8. Reproducibility and Research Artifacts</h2>
+<h3>8.1 Source repository</h3>
+<p>The project source code, notebooks, supporting documentation and research artifacts are maintained in the public GitHub repository: <a href="https://github.com/A1704/flyrank-ml-internship">FlyRank ML Internship Repository</a>.</p>
+<ul>
+<li><a href="https://github.com/A1704/flyrank-ml-internship/blob/main/work/notebooks/capstone.ipynb">Capstone Research Notebook</a></li>
+<li><a href="https://github.com/A1704/flyrank-ml-internship/blob/main/work/notebooks/w03_data_contract.ipynb">W03 Data Contract Notebook</a></li>
+<li><a href="https://github.com/A1704/flyrank-ml-internship/tree/main/work/figures">Research Figures</a></li>
+</ul>
+
+<h3>8.2 Data source</h3>
+<p>The experiment uses the pseudonymized FlyRank warehouse release <code>flyrank_pseudonymized_warehouse_release_v20260703</code>.</p>
+<p>The warehouse dataset is hosted on <a href="https://huggingface.co/datasets/FlyRank/internship-warehouse">Hugging Face: FlyRank Internship Warehouse</a>.</p>
+<p>Although the full warehouse release contains approximately 78.8 million daily performance records, this experiment uses the March and April 2026 monthly partitions rather than analysing the entire release. Access to the warehouse may require authorization. Authentication credentials must be stored securely in the execution environment and must never be committed to the repository.</p>
+
+<h3>8.3 Experiment configuration</h3>
+<table>
+<tr><th>Component</th><th>Configuration</th></tr>
+<tr><td>Feature period</td><td>March 2026</td></tr>
+<tr><td>Outcome period</td><td>April 2026</td></tr>
+<tr><td>Observation unit</td><td>Client-content pair</td></tr>
+<tr><td>Final observations</td><td>3,609</td></tr>
+<tr><td>Clients</td><td>19</td></tr>
+<tr><td>Features</td><td>5</td></tr>
+<tr><td>Model</td><td>Logistic Regression</td></tr>
+<tr><td>Class weighting</td><td>Balanced</td></tr>
+<tr><td>Validation</td><td>Leave-One-Client-Out</td></tr>
+<tr><td>Imputation</td><td>Median</td></tr>
+<tr><td>Scaling</td><td>StandardScaler</td></tr>
+</table>
+
+<h3>8.4 Reproduction procedure</h3>
+<p>A researcher with authorized access to the warehouse can reproduce the experiment by:</p>
+<ol>
+<li>Installing the required Python packages.</li>
+<li>Configuring Hugging Face authentication through a secure environment variable or notebook secret.</li>
+<li>Loading the March and April 2026 daily performance partitions.</li>
+<li>Applying the source-availability and reporting-day eligibility rules.</li>
+<li>Aggregating the March features and April outcomes at client-content level.</li>
+<li>Constructing the binary decline label.</li>
+<li>Running the Logistic Regression pipeline using Leave-One-Client-Out validation.</li>
+<li>Calculating the classification and client-level ranking metrics.</li>
+<li>Comparing model results with the corresponding baseline metrics.</li>
+<li>Generating the three research figures using the corrected 3,609-observation dataset and exporting the approved aggregate results.</li>
+</ol>
+
+<h3>8.5 Reproducibility and privacy safeguards</h3>
+<ul>
+<li>Authentication tokens and private credentials must not be included in public artifacts.</li>
+<li>Client and content identifiers are pseudonymized and should not be used to identify entities.</li>
+<li>No private client names, URLs, search queries or identifiable business information should appear in the public paper.</li>
+<li>The final public artifacts should contain only approved aggregate results, methodology descriptions and safe visualizations.</li>
+<li>Exact reproduction may depend on continued availability and authorization of the warehouse release.</li>
+</ul>
+
+<h3>8.6 Supporting research artifacts</h3>
+<ul>
+<li><code>work/notebooks/capstone.ipynb</code> — consolidated research record, methodology and final findings.</li>
+<li><code>work/notebooks/w03_data_contract.ipynb</code> — warehouse data contract, feature construction, label definition and client-held-out validation.</li>
+<li><code>work/outputs/</code> — approved aggregate metrics and experiment outputs, where available.</li>
+<li><code>work/figures/target_distribution.png</code> — target distribution visualization.</li>
+<li><code>work/figures/client_level_roc_auc.png</code> — client-level ROC-AUC visualization.</li>
+<li><code>work/figures/client_level_average_precision.png</code> — Average Precision versus prevalence baseline visualization.</li>
+<li><code>docs/</code> — public research paper and supporting documentation.</li>
+</ul>
+<p>The consolidated capstone notebook and all referenced figures should be checked before final publication.</p>
+
+<h2>9. Acknowledgments and Data Credit</h2>
+<p>This research was completed as part of the FlyRank ML Internship.</p>
+<p>The author acknowledges FlyRank for providing access to the pseudonymized warehouse dataset and the opportunity to investigate search-performance patterns through applied machine learning.</p>
+<p>The analysis, methodology, interpretation and conclusions presented in this study are the author's work.</p>
+<p><strong>Built on the <a href="https://flyrank.ai">FlyRank ML Internship dataset</a>.</strong></p>
+<p>All findings should be interpreted within the limitations of the selected data windows, available observations and validation design described in this paper.</p>
+
+</main>
+
+<footer>
+Research Capstone · FlyRank ML Internship · <a href="https://flyrank.ai">FlyRank</a>
+</footer>
+</body>
+</html>
